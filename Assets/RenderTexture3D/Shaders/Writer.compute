@@ -3,10 +3,12 @@
 #pragma kernel colorIsNoise
 // you can use .cginc files!
 #include "Assets/CGINC/ClassicNoise3D.cginc"
+#include "UnityCG.cginc"
 
 RWTexture3D<float4> _Rt3d;
 float2 _TexelSize;
 int _Repeat;
+float _DPos;
 
 [numthreads(8, 8, 8)]
 void colorIsXYZ(uint3 id : SV_DispatchThreadID)
@@ -20,5 +22,13 @@ void colorIsNoise(uint3 id : SV_DispatchThreadID)
 	float3 pos = id.xyz * _TexelSize.x;
 	float noise = pnoise(pos*_Repeat, _Repeat);
 
-	_Rt3d[id.xyz] = float4(noise, noise, noise, 1.0);
+	float ddx = pnoise((pos+float3(_DPos,0,0))*_Repeat, _Repeat) - noise;
+	float ddy = pnoise((pos+float3(0,_DPos,0))*_Repeat, _Repeat) - noise;
+	float ddz = pnoise((pos+float3(0,0,_DPos))*_Repeat, _Repeat) - noise;
+
+	float curlX = (ddz - ddy);
+	float curlY = (ddx - ddz);
+	float curlZ = (ddy - ddx);
+
+	_Rt3d[id.xyz] = float4(float3(curlX, curlY, curlZ)/_DPos, noise);
 }
